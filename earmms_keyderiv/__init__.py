@@ -3,11 +3,9 @@ import os
 from flask import Flask
 
 from earmms_keyderiv.crypto import set_index_key, set_encrypt_key
-from earmms_keyderiv.version import version
 
 def app_factory():
     app = Flask(__name__)
-    app.config["VERSION"] = version
 
     ############################################################################
     # load app configs
