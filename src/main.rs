@@ -39,7 +39,7 @@ pub fn generate_key(data: &String, salt: &String) -> String {
         salt_vec.push(byte);
     }
 
-    let mut output_vec = vec![0; 32];
+    let mut output_vec: Vec<u8> = vec![0; 32];
     scrypt(&data_vec, &salt_vec, &SCRYPT_PARAMS, output_vec.as_mut_slice());
 
     let mut output = String::new();
