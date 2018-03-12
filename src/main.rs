@@ -24,19 +24,27 @@ lazy_static! {
     static ref INDEX_KEY: String = env::var("INDEX_KEY").expect("INDEX_KEY not provided");
     static ref ENCRYPT_KEY: String = env::var("ENCRYPT_KEY").expect("ENCRYPT_KEY not provided");
 
+    static ref INDEX_KEY_BYTES: Vec<u8> = hex_to_bytes(INDEX_KEY.deref());
+    static ref ENCRYPT_KEY_BYTES: Vec<u8> = hex_to_bytes(ENCRYPT_KEY.deref());
+
     // scrypt params
     static ref SCRYPT_PARAMS: ScryptParams = ScryptParams::new(4, 8, 1);
 }
 
-pub fn generate_key(data: &String, salt: &String) -> String {
+pub fn hex_to_bytes(data: &str) -> Vec<u8> {
+    let input_chars: Vec<_> = data.chars().collect();
+
+    input_chars.chunks(2).map(|chunk| {
+        let first = chunk[0].to_digit(16).unwrap();
+        let second = chunk[1].to_digit(16).unwrap();
+        ((first << 4) | second) as u8
+    }).collect()
+}
+
+pub fn generate_key(data: &str, salt_vec: &Vec<u8>) -> String {
     let mut data_vec = Vec::<u8>::new();
     for byte in data.bytes() {
         data_vec.push(byte);
-    }
-
-    let mut salt_vec = Vec::<u8>::new();
-    for byte in salt.bytes() {
-        salt_vec.push(byte);
     }
 
     let mut output_vec: Vec<u8> = vec![0; 32];
@@ -69,7 +77,7 @@ pub fn handler(req: &mut Request) -> IronResult<Response> {
             let column: String = FromValue::from_value(&column_value.unwrap()).unwrap();
 
             let data = format!("{}:{}", table, column);
-            let output = generate_key(&data, INDEX_KEY.deref());
+            let output = generate_key(&data, INDEX_KEY_BYTES.deref());
 
             Ok(Response::with((status::Ok, output)))
         },
@@ -95,7 +103,7 @@ pub fn handler(req: &mut Request) -> IronResult<Response> {
             let row: String = FromValue::from_value(&row_value.unwrap()).unwrap();
 
             let data = format!("{}:{}:{}", table, column, row);
-            let output = generate_key(&data, ENCRYPT_KEY.deref());
+            let output = generate_key(&data, ENCRYPT_KEY_BYTES.deref());
 
             Ok(Response::with((status::Ok, output)))
         },
