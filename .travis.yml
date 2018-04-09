@@ -1,0 +1,13 @@
+sudo: required
+language: rust
+rust:
+  - stable
+
+before_install:
+  - sudo apt-get -qq update
+  - sudo apt-get install -y libsodium-dev
+  - cargo install catflap
+
+script:
+  - cargo build --verbose --all
+  - catflap -- ./tests/run-tests.sh
