@@ -1,0 +1,19 @@
+[package]
+name = "earmms_keyderiv"
+version = "0.1.1"
+authors = [
+    "People Against Prisons Aotearoa <webmaster@papa.org.nz>"
+]
+
+[dependencies]
+env_logger = "0.4.3"
+hyper = "0.10.11"
+iron = "0.5.1"
+params = "0.8.0"
+log = "0.3.8"
+mount = "0.3.0"
+serde = "1.0"
+serde_derive = "1.0"
+serde_json = "1.0"
+lazy_static = "0.2.1"
+rust-crypto = "0.2.36"
