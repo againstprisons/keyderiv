@@ -1,14 +1,14 @@
 FROM alpine:edge
 
-RUN apk add --no-cache \
-    rust \
-    libsodium-dev
-
-RUN apk add --no-cache cargo
-
 COPY . /app
-WORKDIR /app
-RUN cargo build --release
+RUN apk add --no-cache rust libsodium-dev cargo && \
+    cd /app && \
+    cargo build --release && \
+    mkdir -p /usr/local/bin && \
+    cp /app/target/release/earmms_keyderiv /usr/local/bin/earmms_keyderiv && \
+    cd / && \
+    rm -rf /app && \
+    apk del rust cargo
 
 ENV PORT 80
-CMD /app/target/release/earmms_keyderiv
+CMD /usr/local/bin/earmms_keyderiv
