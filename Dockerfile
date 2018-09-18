@@ -1,7 +1,7 @@
 FROM alpine:edge
 
 COPY . /app
-RUN apk add --no-cache rust libsodium-dev cargo && \
+RUN apk add --no-cache rust libsodium-dev cargo libgcc && \
     cd /app && \
     cargo build --release && \
     mkdir -p /usr/local/bin && \
