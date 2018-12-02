@@ -1,23 +1,23 @@
+extern crate env_logger;
 extern crate hyper;
 extern crate iron;
-extern crate params;
 extern crate mount;
-extern crate env_logger;
+extern crate params;
 #[macro_use]
 extern crate log;
 #[macro_use]
 extern crate lazy_static;
 extern crate crypto;
 
-use std::env;
-use std::os::unix::io::FromRawFd;
-use std::ops::Deref;
+use crypto::scrypt::{scrypt, ScryptParams};
 use hyper::net::{HttpListener, NetworkListener};
 use iron::prelude::*;
-use iron::Protocol;
 use iron::status;
-use params::{Params, Value, FromValue};
-use crypto::scrypt::{ScryptParams, scrypt};
+use iron::Protocol;
+use params::{FromValue, Params, Value};
+use std::env;
+use std::ops::Deref;
+use std::os::unix::io::FromRawFd;
 
 lazy_static! {
     // keys
@@ -34,11 +34,14 @@ lazy_static! {
 pub fn hex_to_bytes(data: &str) -> Vec<u8> {
     let input_chars: Vec<_> = data.chars().collect();
 
-    input_chars.chunks(2).map(|chunk| {
-        let first = chunk[0].to_digit(16).unwrap();
-        let second = chunk[1].to_digit(16).unwrap();
-        ((first << 4) | second) as u8
-    }).collect()
+    input_chars
+        .chunks(2)
+        .map(|chunk| {
+            let first = chunk[0].to_digit(16).unwrap();
+            let second = chunk[1].to_digit(16).unwrap();
+            ((first << 4) | second) as u8
+        })
+        .collect()
 }
 
 pub fn generate_key(data: &str, salt_vec: &Vec<u8>) -> String {
@@ -48,7 +51,12 @@ pub fn generate_key(data: &str, salt_vec: &Vec<u8>) -> String {
     }
 
     let mut output_vec: Vec<u8> = vec![0; 32];
-    scrypt(&data_vec, &salt_vec, &SCRYPT_PARAMS, output_vec.as_mut_slice());
+    scrypt(
+        &data_vec,
+        &salt_vec,
+        &SCRYPT_PARAMS,
+        output_vec.as_mut_slice(),
+    );
 
     let mut output = String::new();
     for byte in output_vec.iter() {
@@ -80,7 +88,7 @@ pub fn handler(req: &mut Request) -> IronResult<Response> {
             let output = generate_key(&data, INDEX_KEY_BYTES.deref());
 
             Ok(Response::with((status::Ok, output)))
-        },
+        }
 
         Some(&Value::String(ref m)) if m == "encrypt" => {
             let table_value = map.get("table");
@@ -106,11 +114,9 @@ pub fn handler(req: &mut Request) -> IronResult<Response> {
             let output = generate_key(&data, ENCRYPT_KEY_BYTES.deref());
 
             Ok(Response::with((status::Ok, output)))
-        },
-
-        _ => {
-            Ok(Response::with(status::BadRequest))
         }
+
+        _ => Ok(Response::with(status::BadRequest)),
     }
 }
 
@@ -149,4 +155,3 @@ fn main() {
     info!("earmms_keyderiv in flight at {}", netstr);
     Iron::new(chain).listen(listener, Protocol::http()).unwrap();
 }
-
