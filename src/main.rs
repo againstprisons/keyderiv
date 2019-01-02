@@ -8,8 +8,9 @@ extern crate log;
 #[macro_use]
 extern crate lazy_static;
 extern crate crypto;
+extern crate dotenv;
+extern crate structopt;
 
-use crypto::scrypt::{scrypt, ScryptParams};
 use hyper::net::{HttpListener, NetworkListener};
 use iron::prelude::*;
 use iron::status;
@@ -18,6 +19,20 @@ use params::{FromValue, Params, Value};
 use std::env;
 use std::ops::Deref;
 use std::os::unix::io::FromRawFd;
+use structopt::StructOpt;
+
+mod scrypt;
+use scrypt::generate_key;
+mod util;
+use util::hex_to_bytes;
+
+#[derive(StructOpt, Debug)]
+#[structopt()]
+struct Opt {
+    /// Read from .env in working directory
+    #[structopt(long = "dotenv")]
+    dotenv: bool,
+}
 
 lazy_static! {
     // keys
@@ -26,44 +41,6 @@ lazy_static! {
 
     static ref INDEX_KEY_BYTES: Vec<u8> = hex_to_bytes(INDEX_KEY.deref());
     static ref ENCRYPT_KEY_BYTES: Vec<u8> = hex_to_bytes(ENCRYPT_KEY.deref());
-
-    // scrypt params
-    static ref SCRYPT_PARAMS: ScryptParams = ScryptParams::new(4, 8, 1);
-}
-
-pub fn hex_to_bytes(data: &str) -> Vec<u8> {
-    let input_chars: Vec<_> = data.chars().collect();
-
-    input_chars
-        .chunks(2)
-        .map(|chunk| {
-            let first = chunk[0].to_digit(16).unwrap();
-            let second = chunk[1].to_digit(16).unwrap();
-            ((first << 4) | second) as u8
-        })
-        .collect()
-}
-
-pub fn generate_key(data: &str, salt_vec: &Vec<u8>) -> String {
-    let mut data_vec = Vec::<u8>::new();
-    for byte in data.bytes() {
-        data_vec.push(byte);
-    }
-
-    let mut output_vec: Vec<u8> = vec![0; 32];
-    scrypt(
-        &data_vec,
-        &salt_vec,
-        &SCRYPT_PARAMS,
-        output_vec.as_mut_slice(),
-    );
-
-    let mut output = String::new();
-    for byte in output_vec.iter() {
-        output.push_str(format!("{:02x}", byte).as_str());
-    }
-
-    output
 }
 
 pub fn handler(req: &mut Request) -> IronResult<Response> {
@@ -125,8 +102,14 @@ fn main() {
         env::set_var("RUST_LOG", format!("{}=info", env!("CARGO_PKG_NAME")));
     }
 
-    let _logger = env_logger::init();
-    info!("Starting up...");
+    let opt = Opt::from_args();
+
+    env_logger::init().ok();
+
+    if opt.dotenv {
+        info!("Loading .env");
+        dotenv::dotenv().ok();
+    }
 
     debug!("Finding socket");
     let mut listener = env::var("LISTEN_FD")
