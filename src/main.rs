@@ -10,6 +10,10 @@ extern crate lazy_static;
 extern crate crypto;
 extern crate dotenv;
 extern crate structopt;
+#[macro_use]
+extern crate serde_derive;
+extern crate rust_sodium;
+extern crate toml;
 
 use hyper::net::{HttpListener, NetworkListener};
 use iron::prelude::*;
@@ -17,14 +21,40 @@ use iron::status;
 use iron::Protocol;
 use params::{FromValue, Params, Value};
 use std::env;
+use std::fs::File;
+use std::io::Read;
 use std::ops::Deref;
 use std::os::unix::io::FromRawFd;
+use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 use structopt::StructOpt;
 
-mod scrypt;
-use scrypt::generate_key;
+mod config;
+use config::Config;
+mod target;
+use target::Target;
+mod keyderiv_crypto;
+use keyderiv_crypto::generate_key;
 mod util;
 use util::hex_to_bytes;
+
+lazy_static! {
+    pub static ref TARGETS: Mutex<Vec<Target>> = Mutex::new(Vec::new());
+}
+
+pub fn find_target(name: &str) -> Option<Target> {
+    let targets = TARGETS.lock().unwrap();
+    for target in targets.clone() {
+        if target.name == name {
+            return Some(target.clone());
+        }
+    }
+
+    None
+}
+
+mod handler;
+use handler::handler_fn;
 
 #[derive(StructOpt, Debug)]
 #[structopt()]
@@ -32,69 +62,10 @@ struct Opt {
     /// Read from .env in working directory
     #[structopt(long = "dotenv")]
     dotenv: bool,
-}
 
-lazy_static! {
-    // keys
-    static ref INDEX_KEY: String = env::var("INDEX_KEY").expect("INDEX_KEY not provided");
-    static ref ENCRYPT_KEY: String = env::var("ENCRYPT_KEY").expect("ENCRYPT_KEY not provided");
-
-    static ref INDEX_KEY_BYTES: Vec<u8> = hex_to_bytes(INDEX_KEY.deref());
-    static ref ENCRYPT_KEY_BYTES: Vec<u8> = hex_to_bytes(ENCRYPT_KEY.deref());
-}
-
-pub fn handler(req: &mut Request) -> IronResult<Response> {
-    let map = req.get_ref::<Params>().unwrap();
-
-    match map.get("mode") {
-        Some(&Value::String(ref m)) if m == "index" => {
-            let table_value = map.get("table");
-            if table_value.is_none() {
-                return Ok(Response::with((status::BadRequest, "table not specified")));
-            }
-
-            let column_value = map.get("column");
-            if column_value.is_none() {
-                return Ok(Response::with((status::BadRequest, "column not specified")));
-            }
-
-            let table: String = FromValue::from_value(&table_value.unwrap()).unwrap();
-            let column: String = FromValue::from_value(&column_value.unwrap()).unwrap();
-
-            let data = format!("{}:{}", table, column);
-            let output = generate_key(&data, INDEX_KEY_BYTES.deref());
-
-            Ok(Response::with((status::Ok, output)))
-        }
-
-        Some(&Value::String(ref m)) if m == "encrypt" => {
-            let table_value = map.get("table");
-            if table_value.is_none() {
-                return Ok(Response::with((status::BadRequest, "table not specified")));
-            }
-
-            let column_value = map.get("column");
-            if column_value.is_none() {
-                return Ok(Response::with((status::BadRequest, "column not specified")));
-            }
-
-            let row_value = map.get("row");
-            if row_value.is_none() {
-                return Ok(Response::with((status::BadRequest, "row not specified")));
-            }
-
-            let table: String = FromValue::from_value(&table_value.unwrap()).unwrap();
-            let column: String = FromValue::from_value(&column_value.unwrap()).unwrap();
-            let row: String = FromValue::from_value(&row_value.unwrap()).unwrap();
-
-            let data = format!("{}:{}:{}", table, column, row);
-            let output = generate_key(&data, ENCRYPT_KEY_BYTES.deref());
-
-            Ok(Response::with((status::Ok, output)))
-        }
-
-        _ => Ok(Response::with(status::BadRequest)),
-    }
+    /// Path to the configuration file
+    #[structopt(long = "config", parse(from_os_str))]
+    config: Option<PathBuf>,
 }
 
 fn main() {
@@ -102,14 +73,55 @@ fn main() {
         env::set_var("RUST_LOG", format!("{}=info", env!("CARGO_PKG_NAME")));
     }
 
-    let opt = Opt::from_args();
-
     env_logger::init().ok();
+
+    let opt = Opt::from_args();
 
     if opt.dotenv {
         info!("Loading .env");
         dotenv::dotenv().ok();
     }
+
+    let config_path = opt.config.unwrap_or_else(|| {
+        env::var("KEYDERIV_CONFIG")
+            .unwrap_or_else(|_| {
+                error!("No keyderiv config found, aborting.");
+                error!("Either pass --config=<path> or set env var KEYDERIV_CONFIG=<path>");
+
+                panic!("No keyderiv config found.");
+            })
+            .into()
+    });
+
+    info!("Config file at path {:?}", &config_path);
+
+    debug!("Reading config file");
+    let mut config_str = String::new();
+    File::open(config_path)
+        .expect("Failed to read config file")
+        .read_to_string(&mut config_str)
+        .expect("Failed to read config file");
+
+    debug!("Parsing config file");
+    let config: Config = toml::from_str(&config_str).expect("Failed to read config file");
+
+    info!("Loaded config for {} targets", config.target.len());
+
+    {
+        debug!("Pushing targets");
+
+        let mut targets = TARGETS.lock().unwrap();
+        for cfgtarget in config.target.clone() {
+            let target = Target::new(cfgtarget);
+            targets.push(target.clone());
+        }
+
+        assert_eq!(config.target.len(), targets.len());
+        debug!(
+            "Pushing targets successful, TARGETS has length {}",
+            targets.len()
+        );
+    };
 
     debug!("Finding socket");
     let mut listener = env::var("LISTEN_FD")
@@ -133,7 +145,7 @@ fn main() {
         .unwrap_or("LISTEN_FD".into());
 
     debug!("Making iron chain");
-    let chain = Chain::new(handler);
+    let chain = Chain::new(handler_fn);
 
     info!("earmms_keyderiv in flight at {}", netstr);
     Iron::new(chain).listen(listener, Protocol::http()).unwrap();

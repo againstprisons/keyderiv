@@ -10,3 +10,13 @@ pub fn hex_to_bytes(data: &str) -> Vec<u8> {
         })
         .collect()
 }
+
+pub fn bytes_to_hex(data: &Vec<u8>) -> String {
+    let mut output: String = String::new();
+
+    for byte in data.clone() {
+        output.push_str(&format!("{:02x}", byte));
+    }
+
+    output
+}

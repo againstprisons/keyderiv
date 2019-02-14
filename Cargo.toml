@@ -1,8 +1,9 @@
 [package]
 name = "earmms_keyderiv"
-version = "0.1.2"
+version = "2.0.0-beta.1"
 authors = [
-    "People Against Prisons Aotearoa <webmaster@papa.org.nz>"
+    "People Against Prisons Aotearoa <opensource@papa.org.nz>",
+    "Alice Jenkinson <alice@jenkinson.nz>"
 ]
 
 [dependencies]
@@ -19,3 +20,5 @@ lazy_static = "0.2.1"
 rust-crypto = "0.2.36"
 dotenv = "0.13.0"
 structopt = "0.2.14"
+toml = "0.4"
+rust_sodium = "0.10.1"
