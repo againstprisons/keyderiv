@@ -1,6 +1,6 @@
 [package]
 name = "earmms_keyderiv"
-version = "2.0.0-beta.1"
+version = "2.0.0-beta.2"
 authors = [
     "People Against Prisons Aotearoa <opensource@papa.org.nz>",
     "Alice Jenkinson <alice@jenkinson.nz>"

@@ -231,7 +231,7 @@ dependencies = [
 
 [[package]]
 name = "earmms_keyderiv"
-version = "2.0.0-beta.1"
+version = "2.0.0-beta.2"
 dependencies = [
  "dotenv 0.13.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
