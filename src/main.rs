@@ -17,15 +17,12 @@ extern crate toml;
 
 use hyper::net::{HttpListener, NetworkListener};
 use iron::prelude::*;
-use iron::status;
 use iron::Protocol;
-use params::{FromValue, Params, Value};
 use std::env;
 use std::fs::File;
 use std::io::Read;
-use std::ops::Deref;
 use std::os::unix::io::FromRawFd;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Mutex;
 use structopt::StructOpt;
 
@@ -33,10 +30,10 @@ mod config;
 use config::Config;
 mod target;
 use target::Target;
+mod handler;
 mod keyderiv_crypto;
-use keyderiv_crypto::generate_key;
 mod util;
-use util::hex_to_bytes;
+use handler::handler_fn;
 
 lazy_static! {
     pub static ref TARGETS: Mutex<Vec<Target>> = Mutex::new(Vec::new());
@@ -52,9 +49,6 @@ pub fn find_target(name: &str) -> Option<Target> {
 
     None
 }
-
-mod handler;
-use handler::handler_fn;
 
 #[derive(StructOpt, Debug)]
 #[structopt()]

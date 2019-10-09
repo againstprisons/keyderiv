@@ -1,7 +1,6 @@
 use iron::prelude::*;
 use iron::status;
-use iron::Protocol;
-use params::{FromValue, Params, Value};
+use params::{Params, Value};
 
 use crate::find_target;
 use crate::keyderiv_crypto::{encrypt_secret, generate_key};
