@@ -1,4 +1,5 @@
-target/
+/result
+/target
 .trigger
 .env
-
+.env.*
