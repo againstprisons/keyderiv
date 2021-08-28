@@ -1,0 +1,27 @@
+stages:
+  - build
+  - test
+
+rust-latest:
+  stage: build
+  image: rust:latest
+  script:
+    - cargo build --verbose
+    - cargo test --verbose
+
+rust-nightly:
+  stage: build
+  image: rustlang/rust:nightly
+  script:
+    - cargo build --verbose
+    - cargo test --verbose
+  allow_failure: true
+
+unit-tests:
+  stage: test
+  image: rust:latest
+  before_script: 
+    - cargo install catflap
+  script:
+    - cargo build --verbose
+    - catflap -- ./tests/run-tests.sh
