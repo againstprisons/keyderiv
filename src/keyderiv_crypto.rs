@@ -1,5 +1,6 @@
 use crypto::scrypt::{scrypt, ScryptParams};
 use rust_sodium::crypto::secretbox::xsalsa20poly1305;
+use lazy_static::lazy_static;
 
 use crate::util::bytes_to_hex;
 

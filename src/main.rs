@@ -1,19 +1,7 @@
-extern crate env_logger;
-extern crate hyper;
-extern crate iron;
-extern crate mount;
-extern crate params;
 #[macro_use]
 extern crate log;
 #[macro_use]
-extern crate lazy_static;
-extern crate crypto;
-extern crate dotenv;
-extern crate structopt;
-#[macro_use]
 extern crate serde_derive;
-extern crate rust_sodium;
-extern crate toml;
 
 use hyper::net::{HttpListener, NetworkListener};
 use iron::prelude::*;
@@ -25,6 +13,7 @@ use std::os::unix::io::FromRawFd;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use structopt::StructOpt;
+use lazy_static::lazy_static;
 
 mod config;
 use config::Config;

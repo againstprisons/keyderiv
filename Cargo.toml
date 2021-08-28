@@ -1,9 +1,10 @@
 [package]
-name = "earmms_keyderiv"
+edition = "2018"
+name = "earmms-keyderiv"
 version = "2.0.0-beta.2"
 authors = [
     "People Against Prisons Aotearoa <opensource@papa.org.nz>",
-    "Alice Jenkinson <alice@jenkinson.nz>"
+    "Iris System <iris@iris.ac.nz>",
 ]
 
 [dependencies]
